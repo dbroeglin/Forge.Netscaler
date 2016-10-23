@@ -1,0 +1,103 @@
+<% if ($CopyrightYear -and $Author) { %>
+<#
+Copyright $CopyrightYear $Author
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+#>
+<% } %>
+function <%= $FunctionName %> {
+    <#
+    .SYNOPSIS
+        Gets the specified <%= $Label %> object(s).
+
+    .DESCRIPTION
+        Gets the specified <%= $Label %> object(s).
+        Either returns a single object identified by its name (-Name parameter)
+        or a collection of objects filtered by the other parameters. Those
+        filter parameters accept either a literal value or a regexp in the form
+        "/someregexp/".
+
+    .EXAMPLE
+        <%= $FunctionName %>
+
+        Get all <%= $Label %> objects.
+
+    .EXAMPLE
+        <%= $FunctionName %> -Name 'foobar'
+    
+        Get the <%= $Label %> named 'foobar'.
+
+    .PARAMETER Session
+        The NetScaler session object.
+
+    .PARAMETER Name
+        The name or names of the <%= $Label %>s to get.
+
+<% $FilterList.GetEnumerator() | % { $Key, $Value = $_.Key, $_.Value %>
+    .PARAMETER <%= $Key %>
+<% if ($Value[2] -eq "default") { %>
+        If true, show builtins. 
+           
+        Default value: $False
+<% } else { %>
+        A filter to apply to the <%= $Value[1] %> value.
+<% } %>
+
+<% } %>
+    #>
+    [CmdletBinding(DefaultParameterSetName='get')]
+    Param(
+        $Session = $Script:Session,
+
+        [Parameter(Position=0, ParameterSetName='get')]
+        [string[]]$Name = @()<%= if ($FilterList -and $FilterList.Count -ne 0) { "," } %>
+
+<% $FilterList.GetEnumerator() | ForEach-Object { $i = 0 } {
+    $i++
+    $Key, $Value = $_.Key, $_.Value
+    $Comma = if ($i -eq $FilterList.Count) { "" } else { "," }
+%>
+
+        [Parameter(ParameterSetName='search')]
+<% if ($Value[2] -eq "default") { %>
+        [switch]$<%= $Key + $Comma %>
+<% } else { %>
+        [string]$<%= $Key + $Comma %>
+<% } %>
+<% } %>
+    )
+    Begin {
+        _AssertSessionActive
+    }
+
+    Process {
+<% if ($FilterList -and ($FilterList.Count -ne 0)) { %>
+        # Contruct a filter hash if we specified any filters
+        $Filters = @{}
+<% $FilterList.GetEnumerator() | % { $Key, $Value = $_.Key, $_.Value %>
+<% if ($Value[2] -eq "default") { %>
+        if (!$<%= $Key %>) {
+            $Filters['<%= $Value[0] %>'] = '<%= $Value[3] %>'
+        }
+<% } else { %>
+        if ($PSBoundParameters.ContainsKey('<%= $Key %>')) {
+            $Filters['<%= $Value[0] %>'] = $<%= $Key %>
+        }
+<% } %>
+<% } %>
+        _InvokeNSRestApiGet -Session $Session -Type <%= $Type %> -Name $Name <%= if ($Arguments) { "-Arguments" } else { "-Filters" } %> $Filters
+<% } else { %>
+        _InvokeNSRestApiGet -Session $Session -Type <%= $Type %> -Name $Name
+<% } %>
+    }
+}
