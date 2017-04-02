@@ -22,7 +22,7 @@ function <%= $FunctionName %> {
 
     .DESCRIPTION
         Gets the specified <%= $Label %> object(s).
-        Either returns a single object identified by its name (-Name parameter)
+        Either returns a single object identified by its identifier (-<%= $ResourceIdParamName %> parameter)
         or a collection of objects filtered by the other parameters. Those
         filter parameters accept either a literal value or a regexp in the form
         "/someregexp/".
@@ -33,26 +33,29 @@ function <%= $FunctionName %> {
         Get all <%= $Label %> objects.
 
     .EXAMPLE
-        <%= $FunctionName %> -Name 'foobar'
+        <%= $FunctionName %> -<%= $ResourceIdParamName %> 'foobar'
     
         Get the <%= $Label %> named 'foobar'.
 
     .PARAMETER Session
         The NetScaler session object.
 
-    .PARAMETER Name
-        The name or names of the <%= $Label %>s to get.
+    .PARAMETER <%= $ResourceIdParamName %>
+        The identifier/name or identifiers/names of the <%= $Label %>s to get.
 
-<% $FilterList.GetEnumerator() | % { $Key, $Value = $_.Key, $_.Value %>
-    .PARAMETER <%= $Key %>
-<% if ($Value[2] -eq "default") { %>
+<% $Filters.GetEnumerator() | % { $FilterName, $FilterDesc = $_.Key, $_.Value -%>
+    .PARAMETER <%= $FilterName %>
+<%- if ($FilterDesc[2] -eq "default") { -%>
         If true, show builtins. 
            
         Default value: $False
-<% } else { %>
-        A filter to apply to the <%= $Value[1] %> value.
+<% } else { -%>
+        A filter to apply to the <%= $FilterDesc[1] %> property.
 <% } %>
-
+<% } -%>
+<% if ($Partial) { -%>
+    .NOTES
+        Nitro implementation status: partial        
 <% } %>
     #>
     [CmdletBinding(DefaultParameterSetName='get')]
@@ -60,44 +63,43 @@ function <%= $FunctionName %> {
         $Session = $Script:Session,
 
         [Parameter(Position=0, ParameterSetName='get')]
-        [string[]]$Name = @()<%= if ($FilterList -and $FilterList.Count -ne 0) { "," } %>
+        [string[]]$<%= $ResourceIdParamName %> = @()<%= if ($Filters -and $Filters.Count -ne 0) { "," } %>
 
-<% $FilterList.GetEnumerator() | ForEach-Object { $i = 0 } {
+<% $Filters.GetEnumerator() | ForEach-Object { $i = 0 } {
     $i++
-    $Key, $Value = $_.Key, $_.Value
-    $Comma = if ($i -eq $FilterList.Count) { "" } else { "," }
-%>
-
+    $FilterName, $FilterDesc = $_.Key, $_.Value
+    $Comma = if ($i -eq $Filters.Count) { "" } else { "," }
+-%>
         [Parameter(ParameterSetName='search')]
-<% if ($Value[2] -eq "default") { %>
-        [switch]$<%= $Key + $Comma %>
-<% } else { %>
-        [string]$<%= $Key + $Comma %>
+<% if ($FilterDesc[2] -eq "default") { -%>
+        [switch]$<%= $FilterName + $Comma %>
+<% } else { -%>
+        [string]$<%= $FilterName + $Comma %>
 <% } %>
-<% } %>
+<% } -%>
     )
     Begin {
         _AssertSessionActive
     }
 
     Process {
-<% if ($FilterList -and ($FilterList.Count -ne 0)) { %>
+<% if ($Filters -and ($Filters.Count -ne 0)) { -%>
         # Contruct a filter hash if we specified any filters
         $Filters = @{}
-<% $FilterList.GetEnumerator() | % { $Key, $Value = $_.Key, $_.Value %>
-<% if ($Value[2] -eq "default") { %>
-        if (!$<%= $Key %>) {
-            $Filters['<%= $Value[0] %>'] = '<%= $Value[3] %>'
+<% $Filters.GetEnumerator() | % { $FilterName, $FilterDesc = $_.Key, $_.Value -%>
+<% if ($FilterDesc[2] -eq "default") { -%>
+        if (!$<%= $FilterName %>) {
+            $Filters['<%= $FilterDesc[0] %>'] = '<%= $FilterDesc[3] %>'
         }
-<% } else { %>
-        if ($PSBoundParameters.ContainsKey('<%= $Key %>')) {
-            $Filters['<%= $Value[0] %>'] = $<%= $Key %>
+<% } else { -%>
+        if ($PSBoundParameters.ContainsKey('<%= $FilterName %>')) {
+            $Filters['<%= $FilterDesc[0] %>'] = $<%= $FilterName %>
         }
-<% } %>
-<% } %>
-        _InvokeNSRestApiGet -Session $Session -Type <%= $Type %> -Name $Name <%= if ($Arguments) { "-Arguments" } else { "-Filters" } %> $Filters
+<% } -%>
+<% } -%>
+        _InvokeNSRestApiGet -Session $Session -Type <%= $Type %> -Name $<%= $ResourceIdParamName %> <%= if ($Arguments) { "-Arguments" } else { "-Filters" } %> $Filters
 <% } else { %>
-        _InvokeNSRestApiGet -Session $Session -Type <%= $Type %> -Name $Name
+        _InvokeNSRestApiGet -Session $Session -Type <%= $Type %> -Name $<%= $ResourceIdParamName %>
 <% } %>
     }
 }
