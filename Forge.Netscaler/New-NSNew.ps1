@@ -41,6 +41,8 @@ function New-NSNew {
 
         [String]$ShouldProcessLabel,
 
+        [String]$Author,
+
         [String[]]$Parameter = @()
     )
     Begin {
