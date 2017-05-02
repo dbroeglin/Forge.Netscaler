@@ -11,6 +11,7 @@ Describe "New-NSNew" {
     $Params = @{ 
         Name   = $Name
         Path   = $TestPath
+        Type   = "NSTestType"
     }
 
     Context "-Name $Name -Path... "{
